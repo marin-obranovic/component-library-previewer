@@ -1,0 +1,7 @@
+.layout-container {
+  height: 100%;
+}
+
+.layout-container > div {
+  height: 100%;
+}

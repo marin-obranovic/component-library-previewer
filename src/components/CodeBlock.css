@@ -1,0 +1,68 @@
+.code-block-container {
+  background-color: white;
+  margin-bottom: 20px;
+  height: 100%;
+}
+
+.height-100 {
+  height: 100%;
+}
+
+.code-edit {
+  background-color: rgb(255, 243, 241);
+}
+
+.live-preview-container {
+  min-height: 500px;
+  margin-bottom: 20px;
+  max-height: 800px;
+  overflow: auto;
+}
+
+.react-json-container {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.react-json-view {
+  min-height: 200px;
+  padding: 10px;
+}
+
+.button-container {
+  margin: 20px 0;
+}
+
+.button-container input {
+  border: 0;
+  background-color: white;
+  margin-right: 20px;
+  min-width: calc(100% - 181px);
+  padding: 10px;
+}
+
+.button-container button {
+  background-color: transparent;
+  border: 2px solid white;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.live-editor-container {
+  min-height: 200px;
+  border: 1px solid black;
+  background-color: rgb(30, 30, 30);
+  margin-bottom: 20px;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.live-editor-container textarea {
+  caret-color: white;
+}
+
+.live-error-container {
+  min-height: 100px;
+  background-color: white;
+  border: 1px solid black;
+}

@@ -6,8 +6,12 @@
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
+    "cms-javascript-sdk": "https://github.com/amplience/cms-javascript-sdk.git#2d7cb9d9856e759ff46aae1fcb10c8b055389a80",
+    "dc-extensions-sdk": "^2.0.0",
+    "missguided-components": "https://github.com/marin-obranovic/missguided-components-demo.git",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
+    "react-json-editor-ajrm": "^2.5.13",
     "react-scripts": "4.0.2",
     "web-vitals": "^1.0.1"
   },
@@ -34,5 +38,14 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@mdx-js/react": "^1.6.22",
+    "bootstrap": "^4.6.0",
+    "prism-react-renderer": "^1.1.1",
+    "react-bootstrap": "^1.4.3",
+    "react-json-view": "^1.21.1",
+    "react-live": "^2.2.3",
+    "unified-ui": "^0.0.3"
   }
 }
