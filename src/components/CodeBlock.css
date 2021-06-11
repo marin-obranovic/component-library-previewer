@@ -13,9 +13,9 @@
 }
 
 .live-preview-container {
-  min-height: 500px;
+  min-height: 800px;
   margin-bottom: 20px;
-  max-height: 800px;
+  /* max-height: 800px; */
   overflow: auto;
 }
 
