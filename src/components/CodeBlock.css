@@ -22,6 +22,9 @@
 .react-json-container {
   margin-bottom: 20px;
   text-align: left;
+  max-height: 550px;
+  min-height: 550px;
+  overflow: auto;
 }
 
 .react-json-view {

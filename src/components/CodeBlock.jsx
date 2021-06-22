@@ -1,28 +1,87 @@
-/* eslint react/jsx-key: 0 */
-
 import React, { useEffect, useState } from "react";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import { LiveProvider, LiveEditor, LiveError, LivePreview } from "react-live";
 import { mdx } from "@mdx-js/react";
 import * as missguidedComponents from "missguided-components";
-import { Container, Row, Col } from "react-bootstrap";
-// import ReactJson from "react-json-view";
+import {
+  Container,
+  Row,
+  Col,
+  ToggleButtonGroup,
+  ToggleButton,
+} from "react-bootstrap";
 import { inlineContent } from "cms-javascript-sdk";
 import JSONInput from "react-json-editor-ajrm";
 import locale from "react-json-editor-ajrm/locale/en";
 import { init } from "dc-extensions-sdk";
+import ComponentLibraryDescription from "missguided-components/dist/form/information.json";
+import { Subject } from "rxjs";
+import { debounceTime } from "rxjs/operators";
 
 import "./CodeBlock.css";
+import { ComponentForm } from "./ComponentForm";
+
+const contentChangeDebounce = new Subject();
+const valueUpdate = new Subject();
+
+contentChangeDebounce
+  .pipe(debounceTime(1000))
+  .subscribe(({ changedLayout, contentData, callback }) => {
+    Object.keys(ComponentLibraryDescription).forEach((componentKey) => {
+      let modifier = 0;
+      const pattern = `<${componentKey} (.*?)\/>`;
+      Array.from(changedLayout.matchAll(new RegExp(pattern, "gi"))).forEach(
+        (item, index) => {
+          if (item[1].indexOf("{ ...content.") === -1) {
+            const inserString = ` { ...content.${componentKey + index}} `;
+
+            changedLayout = `${changedLayout.substring(
+              0,
+              item.index + modifier
+            )} <${componentKey}${inserString}${changedLayout.substring(
+              item.index + modifier + componentKey.length + 2
+            )}`;
+
+            modifier = modifier + inserString.length;
+            contentData[componentKey + index] = { componentType: componentKey };
+            Object.keys(ComponentLibraryDescription[componentKey]).forEach(
+              (propertyKey) => {
+                contentData[componentKey + index][propertyKey] = "";
+              }
+            );
+          }
+        }
+      );
+    });
+
+    Object.keys(contentData).forEach((contentKey) => {
+      if (changedLayout.indexOf(contentKey) === -1) {
+        delete contentData[contentKey];
+      }
+    });
+
+    callback(changedLayout, contentData);
+  });
+
+valueUpdate
+  .pipe(debounceTime(500))
+  .subscribe(
+    ({ content, setContent, componentName, descriptionKey, value }) => {
+      console.log(content);
+      content.data[componentName][descriptionKey] = value;
+      setContent({ ...content });
+    }
+  );
 
 const CodeBlock = ({ live }) => {
   const [isSDK, setIsSDK] = useState(false);
   const [sdk, setSDK] = useState(undefined);
   const [content, setContent] = useState({ data: {}, layout: "" });
   const [amplienceId, setAmplienceId] = useState("");
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   const onAmplienceIdChange = (event) => {
     setAmplienceId(event.target.value);
-    console.log("event:", event.target);
   };
 
   const getAmplienceData = () => {
@@ -48,11 +107,9 @@ const CodeBlock = ({ live }) => {
       .then((sdk) => {
         // output available locales
         setIsSDK(true);
-        console.log("sdk thingy", sdk);
         sdk.frame.setHeight(1200);
         setSDK(sdk);
         sdk.field.getValue().then((data) => {
-          console.log("field data:", data, typeof data);
           setContent(JSON.parse(data));
         });
       })
@@ -61,56 +118,10 @@ const CodeBlock = ({ live }) => {
       });
   }, []);
 
-  {
-    /* <Container fluid>
-      <Row>
-        <PageTitle text={"Discount codes"} alignment={"center"} />
-      </Row>
-      <Row>
-        <Col md={6}>
-            <DiscountBoxes {...content} />
-        </Col>
-        <Col md={6}>
-          <TextBlock
-            bold={true}
-            alignment={"left"}
-            text="Simply copy the code you want to apply and enter it at checkout..."
-          />
-          <TextBlock text="When you’re skint, you’ve gotta get the most out of your money, right? We know that even we can be a bit out of budget on the wrong side of the month but Missguided’s discount codes mean you can stock up on all your favourite pieces without breaking the bank." />
-          <TextBlock text="Wanna know our latest delivery offers and promo codes?  Well, you’ve come to the right place and with brand new pieces hitting the site every single day, you can add swag to bag for a bit less cash money." />
-          <TextBlock text="Keep checkin’ back and we will keep you up-to-date with the newest voucher codes so you can get the clothes you need even when you’re broke AF." />
-        </Col>
-      </Row>
-    </Container> */
-  }
-
-  // const onEditJson = (event) => {
-  //   console.log("on edit:", event);
-  //   // setContent(event.new_value);
-  // };
-
-  // const onAddJson = (event) => {
-  //   console.log("on add:", event);
-  //   // setContent(event.new_value);
-  // };
-
-  // const onDeleteJson = (event) => {
-  //   console.log("on delete:", event);
-  //   // if (event.new_value === undefined) {
-  //   //   setContent({});
-  //   // } else {
-  //   //   setContent(event.new_value);
-  //   // }
-  // };
-
   const onJsonEdit = (event) => {
-    console.log(event);
-
     if (event.error) {
       return;
     }
-
-    // setContent(event.jsObject);
     setContent({ data: event.jsObject, layout: content.layout });
     if (isSDK) {
       sdk.field.setValue(JSON.stringify(content));
@@ -118,14 +129,23 @@ const CodeBlock = ({ live }) => {
   };
 
   const onLayoutChange = (event) => {
-    console.log("on layout change:", event);
-    setContent({ ...content, layout: event });
+    contentChangeDebounce.next({
+      changedLayout: event,
+      contentData: content.data,
+      callback: (layout, json) => {
+        setContent({ ...content, data: { ...json }, layout });
+      },
+    });
   };
 
   const saveToAmplience = () => {
     if (isSDK) {
       sdk.field.setValue(JSON.stringify(content));
     }
+  };
+
+  const handleAdvancedModeChange = (value) => {
+    setAdvancedMode(value);
   };
 
   if (live) {
@@ -178,16 +198,42 @@ const CodeBlock = ({ live }) => {
 
                 <Row>
                   <Col>
+                    <ToggleButtonGroup
+                      type="radio"
+                      value={advancedMode}
+                      name="advancedMode"
+                      onChange={handleAdvancedModeChange}
+                      className="mb-4"
+                    >
+                      <ToggleButton name="form" value={true}>
+                        Form
+                      </ToggleButton>
+                      <ToggleButton name="json" value={false}>
+                        Json
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+
                     <div className="react-json-container">
-                      <JSONInput
-                        id="a_unique_id"
-                        placeholder={content.data}
-                        theme="dark_vscode_tribute"
-                        locale={locale}
-                        height="550px"
-                        width="100%"
-                        onChange={onJsonEdit}
-                      />
+                      {!advancedMode && (
+                        <JSONInput
+                          id="a_unique_id"
+                          placeholder={content.data}
+                          theme="dark_vscode_tribute"
+                          locale={locale}
+                          height="550px"
+                          width="100%"
+                          onChange={onJsonEdit}
+                        />
+                      )}
+                      {advancedMode && (
+                        <div>
+                          <ComponentForm
+                            valueUpdate={valueUpdate}
+                            content={content}
+                            setContent={setContent}
+                          />
+                        </div>
+                      )}
 
                       {/* <ReactJson
                         collapsed={false}
