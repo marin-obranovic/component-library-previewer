@@ -1,7 +1,8 @@
 {
-  "name": "missguided-component-previewer",
+  "name": "component-library-previewer",
   "version": "0.1.0",
   "private": true,
+  "author": "Marin Obranovic",
   "dependencies": {
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",

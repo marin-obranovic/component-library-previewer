@@ -10,7 +10,6 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from "react-bootstrap";
-import { inlineContent } from "cms-javascript-sdk";
 import JSONInput from "react-json-editor-ajrm";
 import locale from "react-json-editor-ajrm/locale/en";
 import { init } from "dc-extensions-sdk";
@@ -77,30 +76,7 @@ const CodeBlock = ({ live }) => {
   const [isSDK, setIsSDK] = useState(false);
   const [sdk, setSDK] = useState(undefined);
   const [content, setContent] = useState({ data: {}, layout: "" });
-  const [amplienceId, setAmplienceId] = useState("");
   const [advancedMode, setAdvancedMode] = useState(false);
-
-  const onAmplienceIdChange = (event) => {
-    setAmplienceId(event.target.value);
-  };
-
-  const getAmplienceData = () => {
-    if (!amplienceId) {
-      console.log("missing amplience id");
-    }
-
-    fetch(
-      `https://cdn.c1.amplience.net/cms/content/query?query=%7B%22sys.iri%22%3A%22http%3A%2F%2Fcontent.cms.amplience.com%2F${amplienceId}%22%7D&scope=tree&store=missguided`
-      // `https://services-cms1.mgnonprod.co.uk/content/slot/${amplienceId}/content?format=json`
-      // `https://services.missguided.com/content/slot/${amplienceId}/content?format=json`
-    )
-      .then((data) => data.json())
-      .then((data) => {
-        console.log("amplience data:", inlineContent(data));
-        const inlinedContent = inlineContent(data);
-        setContent(JSON.parse(inlinedContent[0]));
-      });
-  };
 
   useEffect(() => {
     init()
@@ -171,21 +147,6 @@ const CodeBlock = ({ live }) => {
                 </div>
               </Col>
               <Col lg={4} className="code-edit height-100">
-                {!isSDK && (
-                  <Row className="button-container">
-                    <Col>
-                      <input
-                        type="text"
-                        placeholder="Amplience content ID"
-                        value={amplienceId}
-                        onChange={onAmplienceIdChange}
-                      />
-                      <button onClick={getAmplienceData}>
-                        Get amplience data
-                      </button>
-                    </Col>
-                  </Row>
-                )}
                 {isSDK && (
                   <Row className="button-container">
                     <Col>
