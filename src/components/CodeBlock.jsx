@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import Highlight, { defaultProps } from "prism-react-renderer";
-import { LiveProvider, LiveEditor, LiveError, LivePreview } from "react-live";
+import { LiveProvider, LiveEditor, LiveError } from "react-live";
+import { LivePreview } from "./LivePreview";
 import { mdx } from "@mdx-js/react";
 import * as missguidedComponents from "missguided-components";
 import {
@@ -10,57 +10,82 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from "react-bootstrap";
-import JSONInput from "react-json-editor-ajrm";
-import locale from "react-json-editor-ajrm/locale/en";
 import { init } from "dc-extensions-sdk";
 import ComponentLibraryDescription from "missguided-components/dist/form/information.json";
+import ComponentLibraryEnums from "missguided-components/dist/enum/enum.json";
 import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 
 import "./CodeBlock.css";
 import { ComponentForm } from "./ComponentForm";
+import Editor from "./Editor";
+import { InputModal } from "./inputModal";
+import classnames from "classnames";
 
 const contentChangeDebounce = new Subject();
 const valueUpdate = new Subject();
 
-contentChangeDebounce
-  .pipe(debounceTime(1000))
-  .subscribe(({ changedLayout, contentData, callback }) => {
-    Object.keys(ComponentLibraryDescription).forEach((componentKey) => {
-      let modifier = 0;
-      const pattern = `<${componentKey} (.*?)\/>`;
-      Array.from(changedLayout.matchAll(new RegExp(pattern, "gi"))).forEach(
-        (item, index) => {
-          if (item[1].indexOf("{ ...content.") === -1) {
-            const inserString = ` { ...content.${componentKey + index}} `;
+contentChangeDebounce.pipe(debounceTime(1000)).subscribe((props) => {
+  updateContentLayout(props);
+});
 
-            changedLayout = `${changedLayout.substring(
-              0,
-              item.index + modifier
-            )} <${componentKey}${inserString}${changedLayout.substring(
-              item.index + modifier + componentKey.length + 2
-            )}`;
+const updateContentLayout = ({ changedLayout, contentData, callback }) => {
+  Object.keys(ComponentLibraryDescription).forEach((componentKey) => {
+    let modifier = 0;
+    const pattern = `<${componentKey} (.*?)\/>`;
+    Array.from(changedLayout.matchAll(new RegExp(pattern, "gi"))).forEach(
+      (item, index) => {
+        if (item[1].indexOf("{ ...content.") === -1) {
+          const inserString = ` { ...content.${componentKey + index}} `;
 
-            modifier = modifier + inserString.length;
-            contentData[componentKey + index] = { componentType: componentKey };
-            Object.keys(ComponentLibraryDescription[componentKey]).forEach(
-              (propertyKey) => {
-                contentData[componentKey + index][propertyKey] = "";
+          changedLayout = `${changedLayout.substring(
+            0,
+            item.index + modifier
+          )} <${componentKey}${inserString}${changedLayout.substring(
+            item.index + modifier + componentKey.length + 2
+          )}`;
+
+          modifier = modifier + inserString.length;
+          contentData[componentKey + index] = { componentType: componentKey };
+          Object.keys(ComponentLibraryDescription[componentKey]).forEach(
+            (propertyKey) => {
+              contentData[componentKey + index][propertyKey] = "";
+              switch (ComponentLibraryDescription[componentKey][propertyKey]) {
+                case "string":
+                  contentData[componentKey + index][propertyKey] = "";
+                  break;
+                case "boolean":
+                  contentData[componentKey + index][propertyKey] = false;
+                  break;
+                default:
+                  const currentEnum =
+                    ComponentLibraryEnums[
+                      ComponentLibraryDescription[componentKey][propertyKey]
+                    ];
+                  if (currentEnum && Object.keys(currentEnum).length > 0) {
+                    const firstValue = currentEnum[Object.keys(currentEnum)[0]];
+                    contentData[componentKey + index][propertyKey] = firstValue;
+                  }
+                  break;
               }
-            );
-          }
+
+              // update values accordingly
+              // enums, booleans and stuff
+            }
+          );
         }
-      );
-    });
-
-    Object.keys(contentData).forEach((contentKey) => {
-      if (changedLayout.indexOf(contentKey) === -1) {
-        delete contentData[contentKey];
       }
-    });
-
-    callback(changedLayout, contentData);
+    );
   });
+
+  Object.keys(contentData).forEach((contentKey) => {
+    if (changedLayout.indexOf(contentKey) === -1) {
+      delete contentData[contentKey];
+    }
+  });
+
+  callback(changedLayout, contentData);
+};
 
 valueUpdate
   .pipe(debounceTime(500))
@@ -72,11 +97,14 @@ valueUpdate
     }
   );
 
-const CodeBlock = ({ live }) => {
+const CodeBlock = () => {
   const [isSDK, setIsSDK] = useState(false);
   const [sdk, setSDK] = useState(undefined);
   const [content, setContent] = useState({ data: {}, layout: "" });
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [propertyNameToUpdate, setPropertyNameToUpdate] = useState("");
+  const [newWindowMode, setNewWindowMode] = useState(false);
+  const [openedWindow, setOpenedWindow] = useState(window);
 
   useEffect(() => {
     init()
@@ -86,7 +114,13 @@ const CodeBlock = ({ live }) => {
         sdk.frame.setHeight(1200);
         setSDK(sdk);
         sdk.field.getValue().then((data) => {
-          setContent(JSON.parse(data));
+          updateContentLayout({
+            changedLayout: content.layout,
+            contentData: content,
+            callback: (layout, json) => {
+              setContent({ ...content, data: { ...json }, layout });
+            },
+          });
         });
       })
       .catch((err) => {
@@ -94,15 +128,11 @@ const CodeBlock = ({ live }) => {
       });
   }, []);
 
-  const onJsonEdit = (event) => {
-    if (event.error) {
-      return;
+  useEffect(() => {
+    if (newWindowMode && openedWindow) {
+      openedWindow.postMessage(content);
     }
-    setContent({ data: event.jsObject, layout: content.layout });
-    if (isSDK) {
-      sdk.field.setValue(JSON.stringify(content));
-    }
-  };
+  }, [content]);
 
   const onLayoutChange = (event) => {
     contentChangeDebounce.next({
@@ -124,121 +154,104 @@ const CodeBlock = ({ live }) => {
     setAdvancedMode(value);
   };
 
-  if (live) {
-    return (
-      <div className="code-block-container">
-        <LiveProvider
-          code={content.layout}
-          transformCode={(code) => "/** @jsx mdx */" + code}
-          scope={{
-            mdx,
-            ...missguidedComponents,
-            Container,
-            Col,
-            Row,
-            content: content.data,
-          }}
-        >
-          <Container fluid className="height-100">
-            <Row className="height-100">
-              <Col>
-                <div className="live-preview-container">
-                  <LivePreview />
-                </div>
-              </Col>
-              <Col lg={4} className="code-edit height-100">
-                {isSDK && (
-                  <Row className="button-container">
-                    <Col>
-                      <button onClick={saveToAmplience}>
-                        save Changes to Amplience
-                      </button>
-                    </Col>
-                  </Row>
-                )}
-
-                <Row>
-                  <Col>
-                    <ToggleButtonGroup
-                      type="radio"
-                      value={advancedMode}
-                      name="advancedMode"
-                      onChange={handleAdvancedModeChange}
-                      className="mb-4"
-                    >
-                      <ToggleButton name="form" value={true}>
-                        Form
-                      </ToggleButton>
-                      <ToggleButton name="json" value={false}>
-                        Json
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-
-                    <div className="react-json-container">
-                      {!advancedMode && (
-                        <JSONInput
-                          id="a_unique_id"
-                          placeholder={content.data}
-                          theme="dark_vscode_tribute"
-                          locale={locale}
-                          height="550px"
-                          width="100%"
-                          onChange={onJsonEdit}
-                        />
-                      )}
-                      {advancedMode && (
-                        <div>
-                          <ComponentForm
-                            valueUpdate={valueUpdate}
-                            content={content}
-                            setContent={setContent}
-                          />
-                        </div>
-                      )}
-
-                      {/* <ReactJson
-                        collapsed={false}
-                        src={content}
-                        theme="paraiso"
-                        onAdd={onAddJson}
-                        onEdit={onEditJson}
-                        onDelete={onDeleteJson}
-                      /> */}
-                    </div>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col>
-                    <div className="live-editor-container">
-                      <LiveEditor onChange={onLayoutChange} />
-                    </div>
-                    <div className="live-error-container">
-                      <LiveError />
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-            </Row>
-          </Container>
-        </LiveProvider>
-      </div>
-    );
-  }
+  const openInNewWindow = () => {
+    if (!newWindowMode) {
+      const newWindow = window.open(
+        "http://localhost:3000/live-preview",
+        "_blank",
+        {
+          status: 0,
+          menubar: 0,
+        }
+      );
+      setOpenedWindow(newWindow);
+    }
+    setNewWindowMode(true);
+  };
 
   return (
-    <Highlight {...defaultProps} code={content.layout}>
-      {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <pre className={className} style={{ ...style, padding: "20px" }}>
-          {tokens.map((line, i) => (
-            <div key={i} {...getLineProps({ line, key: i })}>
-              {line.map((token, key) => (
-                <span key={key} {...getTokenProps({ token, key })} />
-              ))}
-            </div>
-          ))}
-        </pre>
-      )}
-    </Highlight>
+    <div className="code-block-container">
+      <LiveProvider
+        code={content.layout}
+        transformCode={(code) => "/** @jsx mdx */" + code}
+        scope={{
+          mdx,
+          ...missguidedComponents,
+          Container,
+          Col,
+          Row,
+          content: content.data,
+        }}
+      >
+        <div
+          className={classnames({ wrapper: true, fullscreen: newWindowMode })}
+        >
+          <section className="sidebar">
+            {isSDK && (
+              <button onClick={saveToAmplience}>
+                save Changes to Amplience
+              </button>
+            )}
+            {!newWindowMode && (
+              <button onClick={openInNewWindow}>Open in new window</button>
+            )}
+            <ToggleButtonGroup
+              type="radio"
+              value={advancedMode}
+              name="advancedMode"
+              onChange={handleAdvancedModeChange}
+            >
+              <ToggleButton name="form" value={true}>
+                Form
+              </ToggleButton>
+              <ToggleButton name="json" value={false}>
+                Json
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            {!advancedMode && (
+              <>
+                <Editor
+                  code={JSON.stringify(content.data)}
+                  handleChange={(value) => {
+                    content.data = value;
+                    setContent({ ...content });
+                  }}
+                  className="json-editor"
+                />
+
+                <LiveEditor className="live-editor" onChange={onLayoutChange} />
+                <LiveError className="live-error" />
+              </>
+            )}
+            {advancedMode && (
+              <div>
+                <ComponentForm
+                  valueUpdate={valueUpdate}
+                  content={content}
+                  setContent={setContent}
+                  setPropertyNameToUpdate={setPropertyNameToUpdate}
+                />
+              </div>
+            )}
+          </section>
+          {!newWindowMode && <LivePreview {...content} />}
+        </div>
+      </LiveProvider>
+
+      <InputModal
+        show={propertyNameToUpdate !== ""}
+        onHide={() => setPropertyNameToUpdate("")}
+        heading="Change name"
+        currentValue={propertyNameToUpdate}
+        onValueChange={(value) => {
+          content.data[value] = content.data[propertyNameToUpdate];
+          delete content.data[propertyNameToUpdate];
+          content.layout = content.layout.replace(propertyNameToUpdate, value);
+          setContent(content);
+        }}
+      />
+    </div>
   );
 };
 

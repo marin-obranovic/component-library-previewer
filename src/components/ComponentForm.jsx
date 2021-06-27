@@ -1,11 +1,28 @@
+import { useState } from "react";
 import { Form, Card } from "react-bootstrap";
 import ComponentLibraryDescription from "missguided-components/dist/form/information.json";
 import ComponentLibraryEnums from "missguided-components/dist/enum/enum.json";
 import Accordion from "react-bootstrap/Accordion";
 
-export const ComponentForm = ({ valueUpdate, content, setContent }) => {
+export const ComponentForm = ({
+  valueUpdate,
+  content,
+  setContent,
+  setPropertyNameToUpdate,
+}) => {
+  const [activeCard, setActiveCard] = useState(1);
+  let timer;
+  const onToggleClick = (event, key) => {
+    clearTimeout(timer);
+    if (event.detail === 1) {
+      timer = setTimeout(() => setActiveCard(key), 200);
+    } else if (event.detail === 2) {
+      setPropertyNameToUpdate(Object.keys(content.data)[key - 1]);
+    }
+  };
+
   return (
-    <Accordion>
+    <Accordion activeKey={activeCard}>
       {Object.keys(content.data).map((componentName, index) => {
         const componentDescription =
           ComponentLibraryDescription[
@@ -23,6 +40,7 @@ export const ComponentForm = ({ valueUpdate, content, setContent }) => {
                 as={Card.Header}
                 variant="link"
                 eventKey={index + 1}
+                onClick={(event) => onToggleClick(event, index + 1)}
               >
                 {componentName}
               </Accordion.Toggle>
@@ -96,11 +114,7 @@ const StringInput = ({
   valueUpdate,
 }) => {
   return (
-    <Form.Group
-      className="mb-3"
-      key={`element-text-${formElementIndex}`}
-      controlId={`${componentName}-${descriptionKey}-form`}
-    >
+    <Form.Group className="mb-3" key={`element-text-${formElementIndex}`}>
       <Form.Label>{descriptionKey}</Form.Label>
       {descriptionKey.indexOf("Color") > -1 ||
       descriptionKey.indexOf("Colour") > -1 ? (
@@ -143,11 +157,7 @@ const EnumInput = ({
   componentDescription,
 }) => {
   return (
-    <Form.Group
-      className="mb-3"
-      key={`element-text-${formElementIndex}`}
-      controlId={`${componentName}-${descriptionKey}-form`}
-    >
+    <Form.Group className="mb-3" key={`element-text-${formElementIndex}`}>
       <Form.Label
         className="me-sm-2"
         htmlFor="inlineFormCustomSelect"
