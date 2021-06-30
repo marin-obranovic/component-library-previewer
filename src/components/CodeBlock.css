@@ -5,7 +5,7 @@
   grid-template-areas: "sidebar preview";
 }
 
-.wrapper.fullscreen{
+.wrapper.fullscreen {
   grid-template-columns: 1fr;
 }
 

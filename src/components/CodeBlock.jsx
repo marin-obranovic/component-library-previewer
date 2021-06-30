@@ -114,9 +114,10 @@ const CodeBlock = () => {
         sdk.frame.setHeight(1200);
         setSDK(sdk);
         sdk.field.getValue().then((data) => {
+          const sdkData = JSON.parse(data);
           updateContentLayout({
-            changedLayout: content.layout,
-            contentData: content,
+            changedLayout: sdkData.layout,
+            contentData: sdkData.data,
             callback: (layout, json) => {
               setContent({ ...content, data: { ...json }, layout });
             },
@@ -164,6 +165,12 @@ const CodeBlock = () => {
           menubar: 0,
         }
       );
+
+      newWindow.onclose = () => {
+        setNewWindowMode(false);
+        setOpenedWindow(window);
+      };
+
       setOpenedWindow(newWindow);
     }
     setNewWindowMode(true);
@@ -187,27 +194,29 @@ const CodeBlock = () => {
           className={classnames({ wrapper: true, fullscreen: newWindowMode })}
         >
           <section className="sidebar">
-            {isSDK && (
-              <button onClick={saveToAmplience}>
-                save Changes to Amplience
-              </button>
-            )}
-            {!newWindowMode && (
-              <button onClick={openInNewWindow}>Open in new window</button>
-            )}
-            <ToggleButtonGroup
-              type="radio"
-              value={advancedMode}
-              name="advancedMode"
-              onChange={handleAdvancedModeChange}
-            >
-              <ToggleButton name="form" value={true}>
-                Form
-              </ToggleButton>
-              <ToggleButton name="json" value={false}>
-                Json
-              </ToggleButton>
-            </ToggleButtonGroup>
+            <div>
+              {isSDK && (
+                <button onClick={saveToAmplience}>
+                  save Changes to Amplience
+                </button>
+              )}
+              {!newWindowMode && (
+                <button onClick={openInNewWindow}>Open in new window</button>
+              )}
+              <ToggleButtonGroup
+                type="radio"
+                value={advancedMode}
+                name="advancedMode"
+                onChange={handleAdvancedModeChange}
+              >
+                <ToggleButton name="form" value={true}>
+                  Form
+                </ToggleButton>
+                <ToggleButton name="json" value={false}>
+                  Json
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </div>
 
             {!advancedMode && (
               <>
