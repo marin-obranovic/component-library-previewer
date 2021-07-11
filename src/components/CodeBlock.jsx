@@ -9,6 +9,7 @@ import {
   Col,
   ToggleButtonGroup,
   ToggleButton,
+  Button,
 } from "react-bootstrap";
 import { init } from "dc-extensions-sdk";
 import ComponentLibraryDescription from "missguided-components/dist/form/information.json";
@@ -24,6 +25,12 @@ import classnames from "classnames";
 
 const contentChangeDebounce = new Subject();
 const valueUpdate = new Subject();
+
+const ToolBar = {
+  Form: "form",
+  Data: "data",
+  Layout: "layour",
+};
 
 contentChangeDebounce.pipe(debounceTime(1000)).subscribe((props) => {
   updateContentLayout(props);
@@ -101,7 +108,7 @@ const CodeBlock = () => {
   const [isSDK, setIsSDK] = useState(false);
   const [sdk, setSDK] = useState(undefined);
   const [content, setContent] = useState({ data: {}, layout: "" });
-  const [advancedMode, setAdvancedMode] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(ToolBar.Form);
   const [propertyNameToUpdate, setPropertyNameToUpdate] = useState("");
   const [newWindowMode, setNewWindowMode] = useState(false);
   const [openedWindow, setOpenedWindow] = useState(window);
@@ -166,9 +173,21 @@ const CodeBlock = () => {
         }
       );
 
-      newWindow.onclose = () => {
-        setNewWindowMode(false);
-        setOpenedWindow(window);
+      const intervalToKill = setInterval(() => {
+        if (newWindow.closed) {
+          setNewWindowMode(false);
+          setOpenedWindow(window);
+          clearInterval(intervalToKill);
+        }
+      }, 1000);
+
+      newWindow.onreadystatechange = (event) => {
+        console.log(event);
+      };
+
+      newWindow.onload = () => {
+        //send current data to newly opened window
+        newWindow.postMessage(content);
       };
 
       setOpenedWindow(newWindow);
@@ -194,14 +213,12 @@ const CodeBlock = () => {
           className={classnames({ wrapper: true, fullscreen: newWindowMode })}
         >
           <section className="sidebar">
-            <div>
+            <div className="button-container">
               {isSDK && (
-                <button onClick={saveToAmplience}>
-                  save Changes to Amplience
-                </button>
+                <Button onClick={saveToAmplience}>Submit changes</Button>
               )}
               {!newWindowMode && (
-                <button onClick={openInNewWindow}>Open in new window</button>
+                <Button onClick={openInNewWindow}>Open in new window</Button>
               )}
               <ToggleButtonGroup
                 type="radio"
@@ -209,31 +226,37 @@ const CodeBlock = () => {
                 name="advancedMode"
                 onChange={handleAdvancedModeChange}
               >
-                <ToggleButton name="form" value={true}>
+                <ToggleButton name="form" value={ToolBar.Form}>
                   Form
                 </ToggleButton>
-                <ToggleButton name="json" value={false}>
-                  Json
+                <ToggleButton name="json" value={ToolBar.Data}>
+                  Data
+                </ToggleButton>
+                <ToggleButton name="json" value={ToolBar.Layout}>
+                  Layout
                 </ToggleButton>
               </ToggleButtonGroup>
             </div>
 
-            {!advancedMode && (
-              <>
-                <Editor
-                  code={JSON.stringify(content.data)}
-                  handleChange={(value) => {
-                    content.data = value;
-                    setContent({ ...content });
-                  }}
-                  className="json-editor"
-                />
+            {advancedMode === ToolBar.Data && (
+              <Editor
+                code={JSON.stringify(content.data)}
+                handleChange={(value) => {
+                  content.data = value;
+                  setContent({ ...content });
+                }}
+                className="json-editor"
+              />
+            )}
 
+            {advancedMode === ToolBar.Layout && (
+              <div>
                 <LiveEditor className="live-editor" onChange={onLayoutChange} />
                 <LiveError className="live-error" />
-              </>
+              </div>
             )}
-            {advancedMode && (
+
+            {advancedMode === ToolBar.Form && (
               <div>
                 <ComponentForm
                   valueUpdate={valueUpdate}

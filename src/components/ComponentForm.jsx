@@ -21,6 +21,18 @@ export const ComponentForm = ({
     }
   };
 
+  if (Object.keys(content.data).length === 0) {
+    return (
+      <>
+        <h4>Form is empty.</h4>
+        <p>
+          Update layout with form compatible components to get some results
+          here.
+        </p>
+      </>
+    );
+  }
+
   return (
     <Accordion activeKey={activeCard}>
       {Object.keys(content.data).map((componentName, index) => {
